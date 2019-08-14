@@ -20,10 +20,9 @@ import (
 )
 
 var (
-	clockConfig = ClockConfig{hsv.HSVColor{120, 100, 30}, "03:04:05", 40 * time.Millisecond, time.Second / 2, 16, 32, 1, 1, "regular", false, false, false}
+	clockConfig = ClockConfig{hsv.HSVColor{120, 100, 30}, 0.25, "03:04:05", 40 * time.Millisecond, time.Second / 2, 16, 32, 1, 1, "regular", false, false, false}
 	matrix rgbmatrix.Matrix
 	canvas *rgbmatrix.Canvas
-	sketch *image.RGBA
 	power = true
 	stopchan chan bool
 	stoppedchan chan bool
@@ -37,6 +36,7 @@ const (
 
 type ClockConfig struct {
 	ClockColor hsv.HSVColor
+	DimAmount float32
 	TimeFormat string
 	AnimSpeed time.Duration
 	ClockReturn time.Duration
@@ -50,39 +50,21 @@ type ClockConfig struct {
 	DisableHardwarePulsing bool
 }
 
-func Render() {
-	if (power) {
-		newR, newG, newB, _ := clockConfig.ClockColor.RGBA()
-		bounds := sketch.Bounds()
-		for curX := bounds.Min.X; curX < bounds.Max.X; curX++ {
-			for curY := bounds.Min.Y; curY < bounds.Max.Y; curY++ {
-				curR, curG, curB, curA := sketch.At(curX, curY).RGBA()
-				curR = curR * newR / 65535
-				curG = curG * newG / 65535
-				curB = curB * newB / 65535
-				canvas.Set(curX, curY, color.RGBA{uint8(curR), uint8(curG), uint8(curB), uint8(curA)})
-			}
-		}
-		canvas.Render()
-	}
-}
-
 func random(min int, max int) int {
-	max--
 	return min + rand.Intn(max - min)
 }
 
 func drawRect(x int, y int, w int, h int, drawColor color.RGBA) {
 	for curX := x; curX < x + w; curX++ {
 		for curY := y; curY < y + h; curY++ {
-			sketch.Set(curX, curY, drawColor)
+			canvas.Set(curX, curY, drawColor)
 		}
 	}
 }
 
 func vectorNumber(n string, x int, y int, drawColor color.RGBA) {
 	font.Color(drawColor)
-	font.DrawText(sketch, image.Point{x, y}, n)
+	font.DrawText(canvas, image.Point{x, y}, n)
 }
 
 func pong_get_ball_endpoint(tempballpos_x int, tempballpos_y float32, tempballvel_x int, tempballvel_y float32) int {
@@ -105,8 +87,6 @@ func RunClock() {
 	bat2_y := 5
 	bat1_target_y := 5
 	bat2_target_y := 5
-	bat1_update := true
-	bat2_update := true
 	bat1miss := false
 	bat2miss := false
 	restart := 25
@@ -114,6 +94,10 @@ func RunClock() {
 	var clock string
 	
 	for {
+		colorR, colorG, colorB, _ := clockConfig.ClockColor.RGBA()
+		fullColor := color.RGBA{uint8(colorR), uint8(colorG), uint8(colorB), 255}
+		dimColor := color.RGBA{uint8(float32(colorR) * clockConfig.DimAmount), uint8(float32(colorG) * clockConfig.DimAmount), uint8(float32(colorB) * clockConfig.DimAmount), 255}
+	
 		curTime := time.Now().Add(time.Second)
 		if !holdTime {
 			clock = curTime.Format(clockConfig.TimeFormat)
@@ -121,11 +105,9 @@ func RunClock() {
 		
         mins := curTime.Minute()
         seconds := curTime.Second()
-        
-		sketch = image.NewRGBA(canvas.Bounds())
 		
 		for i := 0; i < 16; i++ {
-			sketch.Set(16, i, color.RGBA{63, 63, 63, 63})
+			canvas.Set(16, i, dimColor)
 		}
 		
 		h1 := clock[0:1]
@@ -133,23 +115,23 @@ func RunClock() {
 		m1 := clock[3:4]
 		m2 := clock[4:5]
 		
-		vectorNumber(h1, 8, 1, color.RGBA{63, 63, 63, 63})
-		vectorNumber(h2, 12, 1, color.RGBA{63, 63, 63, 63})
+		vectorNumber(h1, 8, 1, dimColor)
+		vectorNumber(h2, 12, 1, dimColor)
 		
-		vectorNumber(m1, 18, 1, color.RGBA{63, 63, 63, 63})
-		vectorNumber(m2, 22, 1, color.RGBA{63, 63, 63, 63})
+		vectorNumber(m1, 18, 1, dimColor)
+		vectorNumber(m2, 22, 1, dimColor)
 		
 		if restart > 0 {
 			ballpos_x = 16
 			if restart == 1 {
-				ballpos_y = float32(random(4,12))
+				ballpos_y = float32(random(4,11))
 				
-				if random(0, 2) > 0 {
+				if random(0, 1) > 0 {
 					ballvel_x = 1
 				} else {
 					ballvel_x = -1
 				}
-				if random(0, 2) > 0 {
+				if random(0, 1) > 0 {
 					ballvel_y = 0.5
 				} else {
 					ballvel_y = -0.5
@@ -173,10 +155,10 @@ func RunClock() {
 			}
 		}
 		
-		if ballpos_x == random(18, 32) {
+		if ballpos_x == random(18, 31) {
 			bat1_target_y = int(ballpos_y)
 		}
-		if ballpos_x == random(4, 16) {
+		if ballpos_x == random(4, 15) {
 			bat2_target_y = int(ballpos_y)
 		}
 		
@@ -186,12 +168,12 @@ func RunClock() {
 			if bat1miss {
 				bat1miss = false
 				if end_ball_y > 8 {
-					bat1_target_y = random(0, 3)
+					bat1_target_y = random(0, 2)
 				} else {
-					bat1_target_y = 8 + random(0, 3)
+					bat1_target_y = 8 + random(0, 2)
 				}
 			} else {
-				bat1_target_y = end_ball_y - random(1, 5)
+				bat1_target_y = end_ball_y - random(1, 4)
 				if bat1_target_y < 0 {
 					bat1_target_y = 0
 				}
@@ -207,12 +189,12 @@ func RunClock() {
 			if bat2miss {
 				bat2miss = false
 				if end_ball_y > 8 {
-					bat2_target_y = random(0, 3)
+					bat2_target_y = random(0, 2)
 				} else {
-					bat2_target_y = 8 + random(0, 3)
+					bat2_target_y = 8 + random(0, 2)
 				}
 			} else {
-				bat2_target_y = end_ball_y - random(1, 5)
+				bat2_target_y = end_ball_y - random(1, 4)
 				if bat2_target_y < 0 {
 					bat2_target_y = 0
 				}
@@ -224,31 +206,23 @@ func RunClock() {
 		
 		if bat1_y > bat1_target_y && bat1_y > 0 {
 			bat1_y--
-			bat1_update = true
 		}
 		
 		if bat1_y < bat1_target_y && bat1_y < 10 {
 			bat1_y++
-			bat1_update = true
 		}
 		
-		if bat1_update {
-			drawRect(bat1_x - 1, bat1_y, 2, 6, color.RGBA{255, 255, 255, 255})
-		}
+		drawRect(bat1_x - 1, bat1_y, 2, 6, fullColor)
 		
 		if bat2_y > bat2_target_y && bat2_y > 0 {
 			bat2_y--
-			bat2_update = true
 		}
 		
 		if bat2_y < bat2_target_y && bat2_y < 10 {
 			bat2_y++
-			bat2_update = true
 		}
 		
-		if bat2_update {
-			drawRect(bat2_x + 1, bat2_y, 2, 6, color.RGBA{255, 255, 255, 255})
-		}
+		drawRect(bat2_x + 1, bat2_y, 2, 6, fullColor)
 		
 		ballpos_x += ballvel_x
 		ballpos_y += ballvel_y
@@ -264,14 +238,13 @@ func RunClock() {
 		}
 		
 		if ballpos_x == bat1_x + 1 && bat1_y <= int(ballpos_y) && int(ballpos_y) <= bat1_y + 5 {
-			if random(0, 3) == 0 {
+			if random(0, 2) == 0 {
 				ballvel_x *= -1
 			} else {
-				bat1_update = true
 				var flick int
 				
 				if bat1_y > 1 || bat1_y < 8 {
-					flick = random(0, 2)
+					flick = random(0, 1)
 				}
 				
 				if bat1_y <= 1 {
@@ -283,14 +256,14 @@ func RunClock() {
 				
 				switch flick {
 					case 0:
-						bat1_target_y += random(1, 3)
+						bat1_target_y += random(1, 2)
 						ballvel_x *= -1
 						if ballvel_y < 2 {
 							ballvel_y += 0.2
 						}
 						
 					case 1:
-						bat1_target_y -= random(1, 3)
+						bat1_target_y -= random(1, 2)
 						ballvel_x *= -1
 						if ballvel_y > 0.2 {
 							ballvel_y -= 0.2
@@ -300,14 +273,13 @@ func RunClock() {
 		}
 		
 		if ballpos_x == bat2_x && bat2_y <= int(ballpos_y) && int(ballpos_y) <= bat2_y + 5 {
-			if random(0, 3) == 0 {
+			if random(0, 2) == 0 {
 				ballvel_x *= -1
 			} else {
-				bat2_update = true
 				var flick int
 				
 				if bat2_y > 1 || bat2_y < 8 {
-					flick = random(0, 2)
+					flick = random(0, 1)
 				}
 				if bat2_y <= 1 {
 					flick = 0
@@ -318,14 +290,14 @@ func RunClock() {
 				
 				switch flick {
 					case 0:
-						bat2_target_y += random(0, 3)
+						bat2_target_y += random(0, 2)
 						ballvel_x *= -1
 						if ballvel_y < 2 {
 							ballvel_y += 0.2
 						}
 					
 					case 1:
-						bat2_target_y -= random(0, 3)
+						bat2_target_y -= random(0, 2)
 						ballvel_x *= -1
 						if ballvel_y > 0.2 {
 							ballvel_y -= 0.2
@@ -338,7 +310,7 @@ func RunClock() {
 			plot_x := ballpos_x
 			plot_y := int(ballpos_y + 0.5)
 			
-			sketch.Set(plot_x, plot_y, color.RGBA{255, 255, 255, 255})
+			canvas.Set(plot_x, plot_y, fullColor)
 		}
 		
 		if ballpos_x < 0 || ballpos_x > 31 {
@@ -346,7 +318,9 @@ func RunClock() {
 			holdTime = false
 		}
 		
-		Render()
+		if (power) {
+			canvas.Render()
+		}
 
 		select {
 			case <-time.After(clockConfig.AnimSpeed):
