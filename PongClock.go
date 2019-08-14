@@ -57,9 +57,9 @@ func Render() {
 		for curX := bounds.Min.X; curX < bounds.Max.X; curX++ {
 			for curY := bounds.Min.Y; curY < bounds.Max.Y; curY++ {
 				curR, curG, curB, curA := sketch.At(curX, curY).RGBA()
-				curR = curR * newR / 255
-				curG = curG * newG / 255
-				curB = curB * newB / 255
+				curR = curR * newR / 65535
+				curG = curG * newG / 65535
+				curB = curB * newB / 65535
 				canvas.Set(curX, curY, color.RGBA{uint8(curR), uint8(curG), uint8(curB), uint8(curA)})
 			}
 		}
