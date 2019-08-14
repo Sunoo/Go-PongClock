@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	clockConfig = ClockConfig{hsv.HSVColor{120, 100, 30}, 1, 2, "03:04:05", 40 * time.Millisecond, 5 * time.Second, 16, 32, 1, 1, "regular", false, false, false}
+	clockConfig = ClockConfig{hsv.HSVColor{120, 100, 30}, "03:04:05", 40 * time.Millisecond, time.Second / 2, 16, 32, 1, 1, "regular", false, false, false}
 	matrix rgbmatrix.Matrix
 	canvas *rgbmatrix.Canvas
 	sketch *image.RGBA
@@ -37,8 +37,6 @@ const (
 
 type ClockConfig struct {
 	ClockColor hsv.HSVColor
-	XOrig int
-	YOrig int
 	TimeFormat string
 	AnimSpeed time.Duration
 	ClockReturn time.Duration
