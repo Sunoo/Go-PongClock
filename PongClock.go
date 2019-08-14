@@ -2,7 +2,6 @@ package main
 
 import (
 	"time"
-	"strconv"
 	"os"
 	"net"
 	"bytes"
@@ -17,6 +16,7 @@ import (
 	"github.com/brutella/hc/accessory"
 	"github.com/Sunoo/hsv"
 	"github.com/lmittmann/ppm"
+	"github.com/toelsiba/fopix"
 )
 
 var (
@@ -27,6 +27,7 @@ var (
 	power = true
 	stopchan chan bool
 	stoppedchan chan bool
+	font *fopix.Font
 )
 
 const (
@@ -81,79 +82,9 @@ func drawRect(x int, y int, w int, h int, drawColor color.RGBA) {
 	}
 }
 
-func drawLine(x1 int, y1 int, x2 int, y2 int, drawColor color.RGBA) {
-	var x, y, w, h int
-	if x1 < x2 {
-		x = x1
-		w = x2 - x1
-	} else {
-		x = x2
-		w = x1 - x2
-	}
-	if y1 < y2 {
-		y = y1
-		h = y2 - y1
-	} else {
-		y = y2
-		h = y1 - y2
-	}
-	drawRect(x, y, w + 1, h + 1, drawColor)
-}
-
-func vectorNumber(n int, x int, y int, drawColor color.RGBA) {
-	switch n {
-		case 0:
-			drawLine(x, y, x, y + 4, drawColor)
-			drawLine(x, y + 4, x + 2, y + 4, drawColor)
-			drawLine(x + 2, y, x + 2, y + 4, drawColor)
-			drawLine(x, y, x + 2, y, drawColor)
-		case 1:
-			drawLine(x + 1, y, x + 1, y + 4, drawColor)
-			drawLine(x, y + 4, x + 2, y + 4, drawColor)
-			drawLine(x, y + 1, x + 1, y, drawColor)
-		case 2:
-			drawLine(x, y, x + 2, y, drawColor)
-			drawLine(x + 2, y, x + 2, y + 2, drawColor)
-			drawLine(x + 2, y + 2, x, y + 2, drawColor)
-			drawLine(x, y + 2, x, y + 4, drawColor)
-			drawLine(x, y + 4, x + 2, y + 4, drawColor)
-		case 3:
-			drawLine(x, y, x + 2, y, drawColor)
-			drawLine(x + 2, y, x + 2, y + 4, drawColor)
-			drawLine(x + 2, y + 2, x + 1, y + 2, drawColor)
-			drawLine(x, y + 4, x + 2, y + 4, drawColor)
-		case 4:
-			drawLine(x + 2, y, x + 2, y + 4, drawColor)
-			drawLine(x + 2, y + 2, x, y + 2, drawColor)
-			drawLine(x, y, x, y + 2, drawColor)
-		case 5:
-			drawLine(x, y, x + 2, y, drawColor)
-			drawLine(x, y, x, y + 2, drawColor)
-			drawLine(x + 2, y + 2, x, y + 2, drawColor)
-			drawLine(x + 2, y + 2, x + 2, y + 4, drawColor)
-			drawLine(x, y + 4, x + 2, y + 4, drawColor)
-		case 6:
-			drawLine(x, y, x, y + 4, drawColor)
-			drawLine(x, y, x + 2, y, drawColor)
-			drawLine(x + 2, y + 2, x, y + 2, drawColor)
-			drawLine(x + 2, y + 2, x + 2, y + 4, drawColor)
-			drawLine(x + 2, y + 4, x, y + 4, drawColor)
-		case 7:
-			drawLine(x, y, x + 2, y, drawColor)
-			drawLine(x + 2, y, x + 1, y + 4, drawColor)
-		case 8:
-			drawLine(x, y, x, y + 4, drawColor)
-			drawLine(x, y + 4, x + 2, y + 4, drawColor)
-			drawLine(x + 2, y, x + 2, y + 4, drawColor)
-			drawLine(x, y, x + 2, y, drawColor)
-			drawLine(x + 2, y + 2, x, y + 2, drawColor)
-		case 9:
-			drawLine(x, y, x, y + 2, drawColor)
-			drawLine(x, y + 4, x + 2, y + 4, drawColor)
-			drawLine(x + 2, y, x + 2, y + 4, drawColor)
-			drawLine(x, y, x + 2, y, drawColor)
-			drawLine(x + 2, y + 2, x, y + 2, drawColor)
-	}
+func vectorNumber(n string, x int, y int, drawColor color.RGBA) {
+	font.Color(drawColor)
+	font.DrawText(sketch, image.Point{x, y}, n)
 }
 
 func pong_get_ball_endpoint(tempballpos_x int, tempballpos_y float32, tempballvel_x int, tempballvel_y float32) int {
@@ -180,7 +111,7 @@ func RunClock() {
 	bat2_update := true
 	bat1miss := false
 	bat2miss := false
-	restart := 1
+	restart := 25
 	holdTime := false
 	var clock string
 	
@@ -199,10 +130,10 @@ func RunClock() {
 			sketch.Set(16, i, color.RGBA{63, 63, 63, 63})
 		}
 		
-		h1, _ := strconv.Atoi(clock[0:1])
-		h2, _ := strconv.Atoi(clock[1:2])
-		m1, _ := strconv.Atoi(clock[3:4])
-		m2, _ := strconv.Atoi(clock[4:5])
+		h1 := clock[0:1]
+		h2 := clock[1:2]
+		m1 := clock[3:4]
+		m2 := clock[4:5]
 		
 		vectorNumber(h1, 8, 1, color.RGBA{63, 63, 63, 63})
 		vectorNumber(h2, 12, 1, color.RGBA{63, 63, 63, 63})
@@ -557,6 +488,12 @@ func main() {
 	go t.Start()
 	
 	rand.Seed(time.Now().UnixNano())
+	
+	var err error
+	font, err = fopix.NewFromFile("digits-3x5.json")
+	if err != nil {
+		fatal(err)
+	}
 	
 	go RunClock()
 	
