@@ -435,17 +435,23 @@ func main() {
 	acc.Lightbulb.Brightness.OnValueRemoteUpdate(func(bright int) {
 		clockConfig.ClockColor.V = bright
 		matrix.SetBrightness(bright)
-		Render()
+		if (power) {
+			canvas.Render()
+		}
 	})
 	
 	acc.Lightbulb.Saturation.OnValueRemoteUpdate(func(sat float64) {
 		clockConfig.ClockColor.S = sat
-		Render()
+		if (power) {
+			canvas.Render()
+		}
 	})
 	
 	acc.Lightbulb.Hue.OnValueRemoteUpdate(func(hue float64) {
 		clockConfig.ClockColor.H = hue
-		Render()
+		if (power) {
+			canvas.Render()
+		}
 	})
 
 	t, _ := hc.NewIPTransport(hc.Config{Pin: "12312312"}, acc.Accessory)
