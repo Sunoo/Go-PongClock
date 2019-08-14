@@ -62,23 +62,18 @@ func drawRect(x int, y int, w int, h int, drawColor color.RGBA) {
 	}
 }
 
-func vectorNumber(n string, x int, y int, drawColor color.RGBA) {
-	font.Color(drawColor)
-	font.DrawText(canvas, image.Point{x, y}, n)
-}
-
-func pong_get_ball_endpoint(tempballpos_x int, tempballpos_y float32, tempballvel_x int, tempballvel_y float32) int {
-	for tempballpos_x > bat1_x + 1 && tempballpos_x < bat2_x {
-		tempballpos_x += tempballvel_x
-		tempballpos_y += tempballvel_y
-		if tempballpos_y <= 0 || tempballpos_y >= 15 {
-			tempballvel_y *= -1
+func guessEndpoint(ballpos_x int, ballpos_y float32, ballvel_x int, ballvel_y float32) int {
+	for ballpos_x > bat1_x + 1 && ballpos_x < bat2_x {
+		ballpos_x += ballvel_x
+		ballpos_y += ballvel_y
+		if ballpos_y <= 0 || ballpos_y >= 15 {
+			ballvel_y *= -1
 		}
 	}
-	return int(tempballpos_y)
+	return int(ballpos_y)
 }
 
-func RunClock() {
+func runClock() {
 	ballpos_x := 16
 	ballpos_y := float32(8)
 	ballvel_x := 0
@@ -91,16 +86,17 @@ func RunClock() {
 	bat2miss := false
 	restart := 25
 	holdTime := false
-	var clock string
+	var clock []rune
+	bounds := canvas.Bounds()
 	
 	for {
 		colorR, colorG, colorB, _ := clockConfig.ClockColor.RGBA()
 		fullColor := color.RGBA{uint8(colorR), uint8(colorG), uint8(colorB), 255}
 		dimColor := color.RGBA{uint8(float32(colorR) * clockConfig.DimAmount), uint8(float32(colorG) * clockConfig.DimAmount), uint8(float32(colorB) * clockConfig.DimAmount), 255}
-	
+		
 		curTime := time.Now().Add(time.Second)
 		if !holdTime {
-			clock = curTime.Format(clockConfig.TimeFormat)
+			clock = []rune(curTime.Format(clockConfig.TimeFormat))
 		}
 		
         mins := curTime.Minute()
@@ -109,17 +105,12 @@ func RunClock() {
 		for i := 0; i < 16; i++ {
 			canvas.Set(16, i, dimColor)
 		}
-		
-		h1 := clock[0:1]
-		h2 := clock[1:2]
-		m1 := clock[3:4]
-		m2 := clock[4:5]
-		
-		vectorNumber(h1, 8, 1, dimColor)
-		vectorNumber(h2, 12, 1, dimColor)
-		
-		vectorNumber(m1, 18, 1, dimColor)
-		vectorNumber(m2, 22, 1, dimColor)
+			
+		font.Color(dimColor)
+		font.DrawRune(canvas, image.Point{8, 1}, clock[0])
+		font.DrawRune(canvas, image.Point{12, 1}, clock[1])
+		font.DrawRune(canvas, image.Point{18, 1}, clock[3])
+		font.DrawRune(canvas, image.Point{22, 1}, clock[4])
 		
 		if restart > 0 {
 			ballpos_x = 16
@@ -163,7 +154,7 @@ func RunClock() {
 		}
 		
 		if ballpos_x == 15 && ballvel_x < 0 {
-			end_ball_y := pong_get_ball_endpoint(ballpos_x, ballpos_y, ballvel_x, ballvel_y)
+			end_ball_y := guessEndpoint(ballpos_x, ballpos_y, ballvel_x, ballvel_y)
 			
 			if bat1miss {
 				bat1miss = false
@@ -184,7 +175,7 @@ func RunClock() {
 		}
 		
 		if ballpos_x == 17 && ballvel_x > 0 {
-			end_ball_y := pong_get_ball_endpoint(ballpos_x, ballpos_y, ballvel_x, ballvel_y)
+			end_ball_y := guessEndpoint(ballpos_x, ballpos_y, ballvel_x, ballvel_y)
 			
 			if bat2miss {
 				bat2miss = false
@@ -307,10 +298,9 @@ func RunClock() {
 		}
 		
 		if restart == 0 {
-			plot_x := ballpos_x
-			plot_y := int(ballpos_y + 0.5)
-			
-			canvas.Set(plot_x, plot_y, fullColor)
+			if ballpos_x >= bounds.Min.X && ballpos_x <= bounds.Max.X - 1 && int(ballpos_y + 0.5) >= bounds.Min.Y && int(ballpos_y + 0.5) <= bounds.Max.Y - 1 {
+				canvas.Set(ballpos_x, int(ballpos_y + 0.5), fullColor)
+			}
 		}
 		
 		if ballpos_x < 0 || ballpos_x > 31 {
@@ -333,7 +323,7 @@ func RunClock() {
 	}
 }
 
-func Flaschen() {
+func flaschen() {
 	pc, err := net.ListenPacket("udp", ":1337")
 	if err != nil {
 		return
@@ -347,7 +337,7 @@ func Flaschen() {
 	f := func() {
 		clockStopped = false
 		matrix.SetBrightness(clockConfig.ClockColor.V)
-		go RunClock()
+		go runClock()
 	}
 	timer := time.AfterFunc(clockConfig.ClockReturn, f)
 	timer.Stop()
@@ -376,7 +366,7 @@ func Flaschen() {
 			}
 			
 			draw.Draw(canvas, canvas.Bounds(), img, image.ZP, draw.Src)
-    		canvas.Render()
+			canvas.Render()
 		}
 	}()
 
@@ -424,7 +414,7 @@ func main() {
 		if power != on {
 			power = on;
 			if on {
-				go RunClock()
+				go runClock()
 			} else {
 				stopchan <- true
 				<-stoppedchan
@@ -473,9 +463,9 @@ func main() {
 		fatal(err)
 	}
 	
-	go RunClock()
+	go runClock()
 	
-	go Flaschen()
+	go flaschen()
 	
 	select {}
 }
